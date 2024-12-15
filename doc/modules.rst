@@ -3,5 +3,6 @@ src
 
 .. toctree::
    :maxdepth: 4
-
-   gh_wrapper
+   modules
+   ../modules
+   ../gh_wrapper
