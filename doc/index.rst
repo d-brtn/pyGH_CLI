@@ -7,8 +7,5 @@ Welcome to Example's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 6
    :caption: Contents:
-
-   ../src/modules
-   modules.rst
