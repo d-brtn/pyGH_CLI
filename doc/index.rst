@@ -10,3 +10,5 @@ Welcome to Example's documentation!
    :maxdepth: 6
    :caption: Contents:
    modules
+   ../src/modules
+   ../src/gh_wrapper
