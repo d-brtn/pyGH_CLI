@@ -10,4 +10,5 @@ Welcome to Example's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   ../src/modules
+   modules.rst
