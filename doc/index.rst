@@ -3,11 +3,11 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Example's documentation!
+Welcome to Github CLI Wrapper's documentation!
 ===================================
 
 .. toctree::
    :maxdepth: 6
    :caption: Contents:
-   modules 
-      gh_wrapper.rst
+
+   gh_wrapper.rst
