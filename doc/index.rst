@@ -12,4 +12,4 @@ Welcome to Github CLI Wrapper's documentation!
 
 
    modules
-      gh_wrapper.rst
+   gh_wrapper.rst
