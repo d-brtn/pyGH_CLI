@@ -14,4 +14,4 @@ Welcome to Github CLI Wrapper's documentation!
 
    Members
    =======
-
+   gh_wrapper
