@@ -31,7 +31,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # Add the ../src directory to sys.path
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../pyghcli'))
 
 print(f"path : {sys.path}")
 # -- Options for HTML output -------------------------------------------------
