@@ -3,5 +3,6 @@ src
 
 .. toctree::
    :maxdepth: 4
+   
    modules
-      ../pyghcli/gh_wrapper
+   ../pyghcli/gh_wrapper
