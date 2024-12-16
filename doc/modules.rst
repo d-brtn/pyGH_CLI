@@ -5,4 +5,4 @@ src
    :maxdepth: 4
    
    modules
-   ../pyghcli/gh_wrapper
+   gh_wrapper.rst
