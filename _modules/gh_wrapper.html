@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gh_wrapper &#8212; GH CLI Wrapper  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for gh_wrapper</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">dataclasses</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">doctest</span>
+
+
+
+<span class="n">FORMAT</span> <span class="o">=</span> <span class="s1">&#39;{&quot;Time&quot;: &quot;</span><span class="si">%(asctime)s</span><span class="s1">&quot;, &quot;level&quot;: &quot;</span><span class="si">%(levelname)s</span><span class="s1">&quot;,&quot;file_name&quot;:&quot;</span><span class="si">%(filename)s</span><span class="s1">:</span><span class="si">%(lineno)s</span><span class="s1">&quot;, &quot;function&quot;:&quot;</span><span class="si">%(funcName)s</span><span class="s1">()&quot;, &quot;message&quot;:&quot;</span><span class="si">%(message)s</span><span class="s1">&quot;}&#39;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="n">FORMAT</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="GH_CLI">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI">[docs]</a>
+<span class="k">class</span> <span class="nc">GH_CLI</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class for interacting with the GitHub CLI (gh).</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        api_version (str): The GitHub API version to use.</span>
+<span class="sd">        username (str): The username of the authenticated user.</span>
+<span class="sd">        gh_cli_path (str): Path to the gh CLI executable.</span>
+<span class="sd">        repos_raw (list): List of raw repository data for the user.</span>
+<span class="sd">        repo_perm_index (dict): A dictionary mapping repository names to permissions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_version</span><span class="o">=</span> <span class="s2">&quot;2022-11-28&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the GH_CLI instance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            api_version (str): The GitHub API version to use. Default is &quot;2022-11-28&quot;.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(gh.username, str)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>        
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gh_cli_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_gh_cli_path</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span> <span class="o">=</span> <span class="n">api_version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_version_header</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;X-GitHub-API-Version:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="si">}</span><span class="s2">&quot;</span>        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_gh_command</span><span class="p">(</span><span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="s2">&quot;/user&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_user</span><span class="p">[</span><span class="s1">&#39;login&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repos_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pull_all_user_repos</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repo_perm_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_repo_index</span><span class="p">()</span>
+
+        
+        <span class="k">pass</span>
+<div class="viewcode-block" id="GH_CLI.setup_repo_index">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.setup_repo_index">[docs]</a>
+    <span class="k">def</span> <span class="nf">setup_repo_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up a dictionary mapping repository names to permissions.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: A dictionary where keys are repository names and values are lists of permissions.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(gh.repo_perm_index, dict)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">repo</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]:[</span><span class="n">permission</span> <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;permissions&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">permission</span><span class="p">]</span> <span class="k">for</span> <span class="n">repo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">repos_raw</span><span class="p">}</span> </div>
+
+    
+<div class="viewcode-block" id="GH_CLI.get_gh_cli_path">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.get_gh_cli_path">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_gh_cli_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the path to the gh CLI executable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The path to the gh CLI executable.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SystemExit: If the gh CLI is not found in the PATH.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(gh.gh_cli_path, str)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">gh_cli_path</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s1">&#39;which&#39;</span><span class="p">,</span> <span class="s1">&#39;gh&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">gh_cli_path</span>
+        <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;gh CLI not found in PATH&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GH_CLI.log_cli_error">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.log_cli_error">[docs]</a>
+    <span class="k">def</span> <span class="nf">log_cli_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Log an error that occurred while running a gh CLI command.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            command (str): The gh CLI command that caused the error.</span>
+<span class="sd">            error (Exception): The exception raised.</span>
+<span class="sd">            *args: Additional arguments passed to the command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">({</span><span class="s2">&quot;command&quot;</span><span class="p">:{</span><span class="n">command</span><span class="p">},</span> 
+                       <span class="s2">&quot;error&quot;</span><span class="p">:{</span><span class="n">error</span><span class="p">},</span> 
+                       <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">args</span><span class="p">}</span>
+                       <span class="p">}</span>
+                      <span class="p">)</span>
+        <span class="k">pass</span></div>
+
+
+    
+<div class="viewcode-block" id="GH_CLI.run_gh_command">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.run_gh_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">run_gh_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run a gh CLI command and return the output.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            command (str): The gh CLI command to run.</span>
+<span class="sd">            *args: Additional arguments for the command.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict or None: The parsed JSON output from the command, or None if an error occurred.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; result = gh.run_gh_command(&quot;api&quot;, &quot;/user&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(result, dict)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_subprocess_cmd</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gh_cli_path</span><span class="p">,</span> <span class="s2">&quot;-H&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">api_version_header</span><span class="si">}</span><span class="s2">&quot;</span> <span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;run_gh_command _subprocess_cmd</span><span class="si">{</span><span class="n">_subprocess_cmd</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_gh_run</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">_subprocess_cmd</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_gh_run</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running gh command: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">args</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;status&#39;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">match</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]:</span>
+                    <span class="k">case</span> <span class="s1">&#39;200&#39;</span><span class="p">:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success running gh command: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="se">\t</span><span class="s2"> </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">case</span> <span class="s1">&#39;201&#39;</span><span class="p">:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success running gh command: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="se">\t</span><span class="s2"> </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">case</span> <span class="s1">&#39;204&#39;</span><span class="p">:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success running gh command: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="se">\t</span><span class="s2"> </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">case</span> <span class="s1">&#39;404&#39;</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+                    <span class="k">case</span> <span class="s1">&#39;422&#39;</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+                    <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error running gh command: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="se">\t</span><span class="s2"> </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>            
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>     
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_cli_error</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span>
+                               <span class="n">error</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+                               <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_cli_error</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span>
+                               <span class="n">error</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+                               <span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;gh command returned non-json output: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">_gh_run</span><span class="o">.</span><span class="n">stdout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_cli_error</span><span class="p">(</span>
+                <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+        
+        
+
+<div class="viewcode-block" id="GH_CLI.run_gh_api_get">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.run_gh_api_get">[docs]</a>
+    <span class="k">def</span> <span class="nf">run_gh_api_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_url</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run a GET request using the gh CLI.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            api_url (str): The API endpoint to call.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict or None: The parsed JSON output from the command, or None if an error occurred.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; result = gh.run_gh_api_get(&quot;/user&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(result, dict)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span>  <span class="bp">self</span><span class="o">.</span><span class="n">run_gh_command</span><span class="p">(</span><span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="n">api_url</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="GH_CLI.run_gh_api_post">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.run_gh_api_post">[docs]</a>
+    <span class="k">def</span> <span class="nf">run_gh_api_post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_url</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run a POST request using the gh CLI.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            api_url (str): The API endpoint to call.</span>
+<span class="sd">            *args: Additional arguments for the POST request.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict or None: The parsed JSON output from the command, or None if an error occurred.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; result = gh.run_gh_api_post(&quot;/some/endpoint&quot;, &quot;--field&quot;, &quot;value&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; result is None or isinstance(result, dict)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_gh_command</span><span class="p">(</span><span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="n">api_url</span><span class="p">,</span> <span class="s1">&#39;-X&#39;</span><span class="p">,</span> <span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GH_CLI.pull_all_user_repos">
+<a class="viewcode-back" href="../index.html#gh_wrapper.GH_CLI.pull_all_user_repos">[docs]</a>
+    <span class="k">def</span> <span class="nf">pull_all_user_repos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pull all repositories for the authenticated user.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of repositories.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; gh = GH_CLI()</span>
+<span class="sd">            &gt;&gt;&gt; repos = gh.pull_all_user_repos()</span>
+<span class="sd">            &gt;&gt;&gt; isinstance(repos, list)</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_gh_api_get</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/users/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="si">}</span><span class="s2">/repos&quot;</span><span class="p">)</span></div>
+</div>
+
+    
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">gh</span> <span class="o">=</span> <span class="n">GH_CLI</span><span class="p">()</span>
+    <span class="n">tp1</span> <span class="o">=</span> <span class="n">gh</span><span class="o">.</span><span class="n">run_gh_api_get</span><span class="p">(</span><span class="s2">&quot;/search/repositories?q=user:d-brtn&quot;</span><span class="p">)</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+    <span class="c1">#tp2 = gh.run_gh_api_get(&#39;/user/d-brtn/repos&#39;)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">gh</span><span class="o">.</span><span class="n">gh_cli_path</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">GH CLI Wrapper</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, David Burton.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.1.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
