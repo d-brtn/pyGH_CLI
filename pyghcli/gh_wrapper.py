@@ -172,10 +172,10 @@ class GH_CLI():
             dict or None: The parsed JSON output from the command, or None if an error occurred.
 
         Example:
-        >>> gh = GH_CLI()
-        >>> result = gh.run_gh_api_get("/user")
-        >>> isinstance(result, dict)
-        True
+            >>> gh = GH_CLI()
+            >>> result = gh.run_gh_api_get("/user")
+            >>> isinstance(result, dict)
+            True
         """
         return  self.run_gh_command("api", api_url)
     
@@ -191,10 +191,10 @@ class GH_CLI():
             dict or None: The parsed JSON output from the command, or None if an error occurred.
 
         Example:
-        >>> gh = GH_CLI()
-        >>> result = gh.run_gh_api_post("/some/endpoint", "--field", "value")
-        >>> result is None or isinstance(result, dict)
-        True
+            >>> gh = GH_CLI()
+            >>> result = gh.run_gh_api_post("/some/endpoint", "--field", "value")
+            >>> result is None or isinstance(result, dict)
+            True
         """
         return self.run_gh_command("api", api_url, '-X', "POST", *args)
 
@@ -206,10 +206,10 @@ class GH_CLI():
             list: A list of repositories.
 
         Example:
-        >>> gh = GH_CLI()
-        >>> repos = gh.pull_all_user_repos()
-        >>> isinstance(repos, list)
-        True
+            >>> gh = GH_CLI()
+            >>> repos = gh.pull_all_user_repos()
+            >>> isinstance(repos, list)
+            True
         """
         return self.run_gh_api_get(f"/users/{self.username}/repos")
     
