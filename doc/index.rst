@@ -9,6 +9,7 @@ Welcome to Github CLI Wrapper's documentation!
 .. toctree::
    :maxdepth: 6
    :caption: Contents:
-   
+
+
    modules
       gh_wrapper.rst
