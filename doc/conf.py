@@ -28,11 +28,10 @@ doctest_test_doctest_blocks = 'True'  # Enable testing of doctest blocks in docu
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# Add the ../src directory to sys.path
 import os
 import sys
-from pathlib import Path
-#https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#usage
-sys.path.insert(0, str(Path('..", pyghcli').resolve()))
+sys.path.insert(0, os.path.abspath('../pyghcliwrapper'))
 
 print(f"path : {sys.path}")
 # -- Options for HTML output -------------------------------------------------
