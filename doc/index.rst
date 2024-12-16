@@ -13,5 +13,5 @@ Welcome to Github CLI Wrapper's documentation!
 .. automodule:: gh_wrapper
 
    Members
-   =======
+   ==================================================
    gh_wrapper
