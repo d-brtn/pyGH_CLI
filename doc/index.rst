@@ -9,7 +9,8 @@ Welcome to Github CLI Wrapper's documentation!
 .. toctree::
    :maxdepth: 6
    :caption: Contents:
+.. automodule:: gh_wrapper
 
+   Members
+   =======
 
-   modules
-   gh_wrapper.rst
